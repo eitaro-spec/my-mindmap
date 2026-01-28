@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マインドマップ完全版</title>
+<style>
+  /* 全体の設定：スクロールできるようにする */
+  body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* ブラウザ自体のスクロールは消す */
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    background-color: #fff;
+  }
+
+  /* キャンバスエリア：ここでスクロールを管理 */
+  #mindmap-container {
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* 【復活】スクロールバーを出す */
+    position: relative;
+    padding: 50px; /* 余白 */
+    box-sizing: border-box;
+  }
+
+  /* 線を描画するSVGレイヤー（文字の後ろに配置） */
+  #svg-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* マウス操作を邪魔しない */
+    z-index: 0;
+  }
+
+  /* 線自体のデザイン */
+  path {
+    fill: none;
+    stroke: #5d55fa; /* 青紫色の線 */
+    stroke-width: 2px;
+    stroke-linecap: round;
+  }
+
+  /* --- ここから文字と配置のデザイン（気に入ってくれた部分） --- */
+  
+  ul {
+    list-style: none;
+    padding-left: 20px;
+    margin: 0;
+    position: relative;
+    z-index: 1; /* 線より手前に表示 */
+  }
+
+  li {
+    position: relative;
+  }
+
+  /* アイテムのコンテナ */
+  .item-container {
+    display: flex;
+    align-items: center;
+    width: max-content; /* 文字数に合わせて幅を確保 */
+  }
+
+  /* テキストエリア（枠なし・透明） */
+  .node-text {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    padding: 4px 8px;
+    margin: 4px 0;
+    border: 1px solid transparent; /* 普段は透明 */
+    border-radius: 4px;
+    background: transparent;
+    outline: none;
+    min-width: 60px;
+    cursor: text;
+  }
+  
+  /* 編集中の見た目 */
+  .node-text:focus {
+    background-color: #f0f8ff;
+    border-color: #c7c7ff;
+  }
+
+  /* 空白時のガイド */
+  .node-text:empty::before {
+    content: '入力...';
+    color: #ccc;
+    font-size: 14px;
+  }
+
+  /* --- 間隔の調整（好評だった部分） --- */
+  
+  /* 親（ルート）の間隔：広め */
+  .root-ul > li {
+    margin-top: 40px;
+    margin-bottom: 40px;
+  }
+
+  /* 子・孫の間隔：狭め */
+  li li {
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+
+  /* 子要素全体を右にずらす（線のスペース確保） */
+  ul ul {
+    padding-left: 60px; /* ここを広げると線の長さが変わる */
+  }
+
+  /* --- ボタン（邪魔にならないデザイン） --- */
+  .btn-group {
+    margin-left: 8px;
+    opacity: 0; /* 普段は透明 */
+    transition: opacity 0.2s;
+    display: flex;
+    gap: 4px;
+  }
+
+  .item-container:hover .btn-group {
+    opacity: 1; /* ホバー時のみ表示 */
+  }
+
+  button {
+    cursor: pointer;
+    font-size: 10px;
+    padding: 2px 6px;
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 4px;
+    color: #666;
+  }
+  
+  button:hover {
+    background: #5d55fa;
+    color: #fff;
+    border-color: #5d55fa;
+  }
+  
+  .btn-delete:hover {
+    background: #d63031;
+    border-color: #d63031;
+  }
+
+</style>
+</head>
+<body>
+
+<div id="mindmap-container">
+  <svg id="svg-layer"></svg>
+
+  <ul class="root-ul" id="root">
+    <li>
+      <div class="item-container">
+        <div class="node-text" contenteditable="true" oninput="drawLines()">デジタル設計</div>
+        <div class="btn-group">
+          <button onclick="addChild(this)">＋</button>
+        </div>
+      </div>
+      
+      <ul>
+        <li>
+          <div class="item-container">
+            <div class="node-text" contenteditable="true" oninput="drawLines()">Fusion 360 アプリ フュージョン</div>
+            <div class="btn-group">
+              <button onclick="addChild(this)">＋</button>
+              <button class="btn-delete" onclick="removeNode(this)">削除</button>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="item-container">
+            <div class="node-text" contenteditable="true" oninput="drawLines()">CadQuery キャド・クエリ</div>
+            <div class="btn-group">
+              <button onclick="addChild(this)">＋</button>
+              <button class="btn-delete" onclick="removeNode(this)">削除</button>
+            </div>
+          </div>
+          <ul>
+             <li>
+              <div class="item-container">
+                <div class="node-text" contenteditable="true" oninput="drawLines()">Pythonスクリプト</div>
+                <div class="btn-group">
+                  <button onclick="addChild(this)">＋</button>
+                  <button class="btn-delete" onclick="removeNode(this)">削除</button>
+                </div>
+              </div>
+             </li>
+          </ul>
+        </li>
+        <li>
+          <div class="item-container">
+            <div class="node-text" contenteditable="true" oninput="drawLines()">1, まず練習で作る</div>
+            <div class="btn-group">
+              <button onclick="addChild(this)">＋</button>
+              <button class="btn-delete" onclick="removeNode(this)">削除</button>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</div>
+
+<script>
+  // --- 線の描画機能 ---
+  function drawLines() {
+    const svg = document.getElementById('svg-layer');
+    const container = document.getElementById('mindmap-container');
+    
+    // SVGのサイズをコンテンツに合わせる（スクロール対応のため）
+    const contentWidth = document.getElementById('root').scrollWidth + 100;
+    const contentHeight = document.getElementById('root').scrollHeight + 100;
+    svg.style.width = contentWidth + 'px';
+    svg.style.height = contentHeight + 'px';
+
+    // 既存の線をクリア
+    svg.innerHTML = '';
+
+    // 全てのli要素を探して線を引く
+    const lis = document.querySelectorAll('li');
+    
+    lis.forEach(li => {
+      // 自分のテキスト要素（終点用）
+      const myText = li.querySelector('.node-text');
+      // 子リスト（ul）があれば、その中の子liたちへ線を引く
+      const childUl = li.querySelector('ul');
+      
+      if (childUl && myText) {
+        const children = childUl.children; // 子liたち
+        
+        for (let child of children) {
+          const childText = child.querySelector('.node-text');
+          if (childText) {
+            connectElements(svg, myText, childText);
+          }
+        }
+      }
+    });
+  }
+
+  // 2つの要素を曲線でつなぐ関数
+  function connectElements(svg, parent, child) {
+    const containerRect = document.getElementById('mindmap-container').getBoundingClientRect();
+    const pRect = parent.getBoundingClientRect();
+    const cRect = child.getBoundingClientRect();
+
+    // コンテナ内の相対座標を計算（スクロール対応）
+    const scrollLeft = document.getElementById('mindmap-container').scrollLeft;
+    const scrollTop = document.getElementById('mindmap-container').scrollTop;
+
+    // 開始点（親の右端・真ん中）
+    const x1 = pRect.right - containerRect.left + scrollLeft;
+    const y1 = pRect.top + pRect.height / 2 - containerRect.top + scrollTop;
+
+    // 終了点（子の左端・真ん中）
+    const x2 = cRect.left - containerRect.left + scrollLeft;
+    const y2 = cRect.top + cRect.height / 2 - containerRect.top + scrollTop;
+
+    // ベジェ曲線の制御点（カーブの具合）
+    const curveStrength = 40; 
+    const cx1 = x1 + curveStrength;
+    const cx2 = x2 - curveStrength;
+
+    // パスを作成
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const d = `M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`;
+    
+    path.setAttribute("d", d);
+    svg.appendChild(path);
+  }
+
+  // --- ノード操作機能 ---
+
+  function addChild(btn) {
+    const currentLi = btn.closest('li');
+    let ul = currentLi.querySelector('ul');
+    
+    if (!ul) {
+      ul = document.createElement('ul');
+      currentLi.appendChild(ul);
+    }
+
+    const newLi = document.createElement('li');
+    newLi.innerHTML = `
+      <div class="item-container">
+        <div class="node-text" contenteditable="true" oninput="drawLines()">新規項目</div>
+        <div class="btn-group">
+          <button onclick="addChild(this)">＋</button>
+          <button class="btn-delete" onclick="removeNode(this)">削除</button>
+        </div>
+      </div>
+    `;
+    ul.appendChild(newLi);
+    
+    // 追加した後に線を再描画
+    setTimeout(drawLines, 0);
+  }
+
+  function removeNode(btn) {
+    const li = btn.closest('li');
+    if (confirm('削除しますか？')) {
+      const parentUl = li.parentNode;
+      li.remove();
+      // ulが空になったらulも消す
+      if (parentUl.children.length === 0 && parentUl.className !== 'root-ul') {
+        parentUl.remove();
+      }
+      drawLines();
+    }
+  }
+
+  // 初期化とイベントリスナー
+  window.addEventListener('load', drawLines);
+  window.addEventListener('resize', drawLines);
+  
+  // 文字入力時にも線を更新（幅が変わるため）
+  // 既にHTML内のoninputで指定していますが、念のため
+  document.addEventListener('input', function(e) {
+    if(e.target.classList.contains('node-text')) {
+      drawLines();
+    }
+  });
+
+</script>
+
+</body>
+</html>
